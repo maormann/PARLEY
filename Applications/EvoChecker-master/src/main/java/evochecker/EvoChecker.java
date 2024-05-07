@@ -146,7 +146,7 @@ public class EvoChecker {
 			//6) close down
 			closeDown();
 			
-			System.err.printf("Time:\t%s\n", (end - start)/1000.0);
+			System.out.printf("Time:\t%s\n", (end - start)/1000.0);
 		} 
 		catch (Exception e) {
 			e.printStackTrace();
