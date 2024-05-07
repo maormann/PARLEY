@@ -6,7 +6,10 @@ import run_evochecker
 import evaluation
 import plot_fronts
 
-max_replications = 10
+MAX_REPLICATIONS = 10
+
+MIN_FREQUENCY = 1
+MAX_FREQUENCY = 10
 
 
 def models():
@@ -16,20 +19,20 @@ def models():
                                          outfile,
                                          before_actions=['start_UAC'],
                                          after_actions=['end_round'],
-                                         possible_decisions=[1, 10],
-                                         module_name='adaptation_MAPE_controller')
+                                         possible_decisions=[MIN_FREQUENCY, MAX_FREQUENCY],)
 
 
-def baseline(i):
-    baseline_file = f'Applications/EvoChecker-master/data/ROBOT{i}_BASELINE/Front'
-    infile = f'Applications/EvoChecker-master/models/model_{i}.prism'
-    os.makedirs(f'Applications/EvoChecker-master/data/ROBOT{i}_BASELINE', exist_ok=True)
+def baseline():
+    baseline_file = f'Applications/EvoChecker-master/data/TAS_BASELINE/Front'
+    infile = f'Applications/EvoChecker-master/models/TAS.prism'
+    os.makedirs(f'Applications/EvoChecker-master/data/TAS_BASELINE', exist_ok=True)
+    prism_caller.properties = ""  # TODO
     with open(baseline_file, 'w') as b_file:
-        for period in range(1, 11):
+        for period in range(MIN_FREQUENCY, MAX_FREQUENCY + 1):
             b_file.write(prism_caller.compute_baseline(infile, period))
-            if period < 10:
+            if period < MAX_FREQUENCY:
                 b_file.write('\n')
-            print('finished baseline map {0}, value {1}'.format(str(i), str(period)))
+            print('finished baseline')
 
 
 def evo_checker():
@@ -38,7 +41,7 @@ def evo_checker():
 
 
 def fronts(i):
-    for period in range(max_replications):
+    for period in range(MAX_REPLICATIONS):
         plot_fronts.plot_pareto_front(i, period)
 
 
