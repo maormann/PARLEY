@@ -1,0 +1,12 @@
+const int steps = 90;
+const double alarms = 5.0;
+
+//label "first_invokation" = alarm = 1 & uac_s = 2 & successful_invocation = 1;
+
+//Objective, min
+R{"model_drift"}=? [ C<=200 ]
+
+//Objective, min
+R{"total_costs"}=? [ C<=200 ]
+
+
