@@ -1,6 +1,8 @@
 import os
 from multiprocessing import Pool, cpu_count
 
+CMD_JAVA_EVOCHECKER = 'java -jar ./target/EvoChecker-1.1.0.jar'
+
 
 def run_task(args):
     os.chdir('Applications/EvoChecker-master')
@@ -21,7 +23,13 @@ def run_task(args):
         f.write("       INIT_PORT = 55{0}\n".format(str(i)))
     # Note: INIT_PORT doesn't have an effect https://github.com/gerasimou/EvoChecker/issues/11
 
-    os.system('java -jar ./target/EvoChecker-1.1.0.jar ' + path)
+    os.system(CMD_JAVA_EVOCHECKER + ' ' + path)
+
+
+def simple_run():
+    os.chdir('Applications/EvoChecker-master')
+    os.environ['LD_LIBRARY_PATH'] = "libs/runtime"
+    os.system(CMD_JAVA_EVOCHECKER)
 
 
 def run(map_, replications):
