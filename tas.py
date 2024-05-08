@@ -5,32 +5,36 @@ import prism_caller
 import run_evochecker
 import evaluation
 import plot_fronts
+import itertools
 
 MAX_REPLICATIONS = 10
 
 MIN_FREQUENCY = 1
 MAX_FREQUENCY = 10
 
+URS = ('s1')  # Uncertainty Reduction Services
+
 
 def models():
-    infile = f'Applications/EvoChecker-master/models/TAS.prism'
-    outfile = f'Applications/EvoChecker-master/models/TAS_umc.prism'
+    infile = 'Applications/EvoChecker-master/models/TAS.prism'
+    outfile = 'Applications/EvoChecker-master/models/TAS_umc.prism'
     umc_synthesis.manipulate_prism_model(infile,
                                          outfile,
                                          before_actions=['start_UAC'],
                                          after_actions=['end_round'],
-                                         possible_decisions=[MIN_FREQUENCY, MAX_FREQUENCY],)
+                                         possible_decisions=[MIN_FREQUENCY, MAX_FREQUENCY],
+                                         urs=URS)
 
 
 def baseline():
-    baseline_file = f'Applications/EvoChecker-master/data/TAS_BASELINE/Front'
-    infile = f'Applications/EvoChecker-master/models/TAS.prism'
+    baseline_file = 'Applications/EvoChecker-master/data/TAS_BASELINE/Front'
+    infile = 'Applications/EvoChecker-master/models/TAS_umc.prism'
     os.makedirs(f'Applications/EvoChecker-master/data/TAS_BASELINE', exist_ok=True)
-    prism_caller.properties = ""  # TODO
+    prism_caller.properties = ['\'R{"model_drift"}=? [ C<=200 ]\'', '\'R{"total_costs"}=? [ C<=200 ]\'']
     with open(baseline_file, 'w') as b_file:
-        for period in range(MIN_FREQUENCY, MAX_FREQUENCY + 1):
+        for period in itertools.product(range(MIN_FREQUENCY, MAX_FREQUENCY + 1), range(MIN_FREQUENCY, MAX_FREQUENCY + 1), range(MIN_FREQUENCY, MAX_FREQUENCY + 1)):
             b_file.write(prism_caller.compute_baseline(infile, period))
-            if period < MAX_FREQUENCY:
+            if period < MAX_FREQUENCY**3:  # TODO MAX_FREQUENCY^3 asumes MIN_FREQUENCY = 1
                 b_file.write('\n')
             print('finished baseline')
 
@@ -47,8 +51,8 @@ def fronts(i):
 
 def main():
     models()
-    # baseline(i)
-    evo_checker()
+    baseline()
+    # evo_checker()
     # fronts(i)
     # evaluation.main()
 

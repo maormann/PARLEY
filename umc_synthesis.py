@@ -3,21 +3,30 @@ import os
 import shutil
 
 
-def manipulate_prism_model(input_path, output_path, possible_decisions=[0, 3], decision_variables=[],
-                           before_actions=[], after_actions=[], controller=None, module_name='Knowledge'):
+def manipulate_prism_model(input_path, output_path,
+                           possible_decisions=[0, 3],
+                           decision_variables=[],
+                           before_actions=[],
+                           after_actions=[],
+                           urs=('urs'),  # Uncertainty Reduction Services
+                           controller=None,
+                           module_name='Knowledge'
+                           ):
     if os.path.abspath(input_path) == os.path.abspath(output_path):
         raise ValueError("Input and output files cannot be the same.")
+
+    assert len(urs) >= 1
 
     shutil.copyfile(input_path, output_path)
 
     variables, beliefs = get_variables(input_path, decision_variables)
 
-    add_transition_to_module(output_path, beliefs, module_name)
+    # add_transition_to_module(output_path, beliefs, module_name)
     if controller is None:
-        add_periodic_controller(output_path, possible_decisions, variables)
+        add_periodic_controller(output_path, possible_decisions, variables, urs)
     else:
-        controller(output_path, possible_decisions, variables)
-    add_turn(output_path, before_actions, after_actions)
+        controller(output_path, possible_decisions, variables, urs)
+    add_turn(output_path, before_actions, after_actions, urs)
 
 
 def get_variables(prism_model_path, decision_variables):
@@ -87,76 +96,82 @@ def add_transition_to_module(file_path, beliefs, module_name='Knowledge'):
         file.write(file_content.replace(module_content_old, module_content_new))
 
 
-def add_periodic_controller(file_path, possible_decisions, variables,):
+def add_periodic_controller(file_path, possible_decisions, variables, urs):
     # write decision variables
     combinations = generate_combinations_list(variables)
-    __add_controller_prefix(file_path, possible_decisions, combinations, variables)
+    __add_controller_prefix(file_path, possible_decisions, combinations, variables, urs)
     with open(file_path, 'a') as file:
-        file.write(f'  step : [1..{possible_decisions[1]}] init 1;\n')
+        for u_reduction_service in urs:
+            file.write(f'  step_{u_reduction_service} : [{possible_decisions[0]}..{possible_decisions[1]}] init {possible_decisions[0]};\n')
     transitions = ['no_update', 'update']
     decisions = ['step<decision', 'step>=decision']
     changes = ['(step\'=step+1)', '(step\'=1)']
-    __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables)
+    __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables, urs)
 
 
-def add_static_controller(file_path, possible_decisions, variables):
+def add_static_controller(file_path, possible_decisions, variables, urs):
     # write decision variables
     combinations = generate_combinations_list(variables)
     possible_decisions = [0, 1]
-    __add_controller_prefix(file_path, possible_decisions, combinations, variables)
+    __add_controller_prefix(file_path, possible_decisions, combinations, variables, urs)
     transitions = ['no_update', 'update']
     decisions = ['zero=decision', 'one=decision']
     changes = ['true', 'true']
-    __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables)
+    __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables, urs)
 
 
-def __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables):
+def __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables, urs):
     with open(file_path, 'a') as file:
         for transition, decision, change in zip(transitions, decisions, changes):
             for combination in combinations:
-                new_line = f'  [{transition}] ({decision}'
-                for var in range(0, len(variables)):
-                    new_line += '_' + str(combination[var])
-                new_line += ')'
-                for var in range(0, len(variables)):
-                    new_line += f' & ({variables[var][0]}={combination[var]})'
-                new_line += f' -> {change};\n'
-                file.write(new_line)
+                for u_reduction_service in urs:
+                    new_line = f'  [{transition}_{u_reduction_service}] ({decision}'
+                    for var in range(0, len(variables)):
+                        new_line += '_' + str(combination[var])
+                    new_line += '_' + u_reduction_service
+                    new_line += ')'
+                    for var in range(0, len(variables)):
+                        new_line += f' & ({variables[var][0]}={combination[var]})'
+                    new_line += f' -> {change};\n'
+                    new_line = new_line.replace('step', f'step_{u_reduction_service}')  # Ditry fix
+                    file.write(new_line)
 
         file.write('endmodule\n\n')
 
 
-def __add_controller_prefix(file_path, possible_decisions, combinations, variables):
+def __add_controller_prefix(file_path, possible_decisions, combinations, variables, urs):
     # write decision variables
     with open(file_path, 'a') as file:
+        file.write('\n\n')
         for combination in combinations:
-            new_line = 'evolve int decision'
-            # new_line = 'const int decision'
-            for var in range(0, len(variables)):
-                new_line += '_' + str(combination[var])
-            new_line += f' [{possible_decisions[0]}..{possible_decisions[1]}];\n'
-            # new_line += '=0;\n'
-            file.write('\n' + new_line)
-        file.write('const int zero = 0;\n')
-        file.write('const int one = 1;\n')
-        file.write('module UMC\n')
+            for u_reduction_service in urs:
+                new_line = 'evolve int decision'
+                for var in range(0, len(variables)):
+                    new_line += '_' + str(combination[var])
+                new_line += '_' + u_reduction_service
+                new_line += f' [{possible_decisions[0]}..{possible_decisions[1]}];\n'
+                file.write(new_line)
+        file.write('\nmodule UMC\n')
 
 
-def add_turn(file_path, before_actions, after_actions):
+def add_turn(file_path, before_actions, after_actions, urs):
     with open(file_path, 'a') as file:
         file.write('module Turn\n')
         file.write('  t : [0..2] init 0;\n')
         # actions that precede
         for action in before_actions:
             file.write(f'  [{action}] (t=0) -> (t\'=1);\n')
+        counter = 2
         file.write('\n')
-        file.write('  [no_update] (t=1) -> (t\'=2);\n')
-        file.write('  [update] (t=1) -> (t\'=2);\n')
+        for u_reduction_service in urs:
+            file.write(f'  [no_update_{u_reduction_service}] (t={counter-1}) -> (t\'={counter});\n')
+            file.write(f'  [update_{u_reduction_service}] (t={counter-1}) -> (t\'={counter});\n')
+            counter += 1
         file.write('\n')
         for action in after_actions:
-            file.write(f'  [{action}] (t=2) -> (t\'=0);\n')
+            file.write(f'  [{action}] (t={counter-1}) -> (t\'=0);\n')
         if len(after_actions) == 0:
-            file.write('  [] (t=2) -> (t\'=0);\n')
+            file.write(f'  [] (t={counter-1}) -> (t\'=0);\n')
         file.write('endmodule\n')
 
 
