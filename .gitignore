@@ -1,2 +1,6 @@
 __pycache__
 Applications/EvoChecker-master/.settings
+Applications/EvoChecker-master/ServerError*.txt
+Applications/EvoChecker-master/ServerOutput*.txt
+Applications/EvoChecker-master/out*.txt
+out.prism
