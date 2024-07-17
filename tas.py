@@ -12,7 +12,7 @@ MAX_REPLICATIONS = 10
 MIN_FREQUENCY = 1
 MAX_FREQUENCY = 10
 
-URS = ('s1')  # Uncertainty Reduction Services
+URS = ('s1', 's2', 's3')  # Uncertainty Reduction Services
 
 
 def models():
@@ -51,7 +51,7 @@ def fronts(i):
 
 def main():
     models()
-    baseline()
+    # baseline()
     # evo_checker()
     # fronts(i)
     # evaluation.main()
