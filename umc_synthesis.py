@@ -157,7 +157,7 @@ def __add_controller_prefix(file_path, possible_decisions, combinations, variabl
 def add_turn(file_path, before_actions, after_actions, urs):
     with open(file_path, 'a') as file:
         file.write('module Turn\n')
-        file.write('  t : [0..2] init 0;\n')
+        file.write(f'  t : [0..{len(urs)+1}] init 0;\n')
         # actions that precede
         for action in before_actions:
             file.write(f'  [{action}] (t=0) -> (t\'=1);\n')
