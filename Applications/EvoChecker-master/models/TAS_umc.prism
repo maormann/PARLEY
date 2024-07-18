@@ -1,79 +1,262 @@
 dtmc
 
-const double s1_failure_rate = 0.030901838378906248;
-const double s1_persistent_failure_rate = 0.02;
-const double s1_persistent_recovery_rate = 0.11;
-
-const double alarm_frequency = 1/3;
+const int s1_latest_probe_max = 10;
+const int s2_latest_probe_max = 10;
+const int s3_latest_probe_max = 10;
+const double alarm_frequency = 1/4;
 
 module synchronisation
-    sync_s: [0..3] init 0;
+    sync_s: [0..6] init 0;
     [set_service1] sync_s = 0 -> 1 : (sync_s'=1);
-    [set_alarm_sender] sync_s = 1 -> 1 : (sync_s'=2);
-    [start_UAC] sync_s = 2 -> 1 : (sync_s'=3);
-    [end_round] sync_s = 3 -> 1 : (sync_s'=0);
+    [set_service2] sync_s = 1 -> 1 : (sync_s'=2);
+    [set_service3] sync_s = 2 -> 1 : (sync_s'=3);
+    [set_alarm_sender] sync_s = 3 -> 1 : (sync_s'=4);
+    [start_UAC] sync_s = 4 -> 1 : (sync_s'=5);
+    [start_URC] sync_s = 5 -> 1 : (sync_s'=6);
+    [end_round] sync_s = 6 -> 1 : (sync_s'=0);
 endmodule
 
 module service1
     s1: [0..2] init 0;
-    [set_service1] s1 <= 1 ->  s1_failure_rate: (s1'=1) + s1_persistent_failure_rate: (s1'=2) + 1-s1_failure_rate-s1_persistent_failure_rate: (s1'=0);
-    [set_service1] s1 = 2  ->  s1_persistent_recovery_rate: (s1'=0) + 1-s1_persistent_recovery_rate: (s1'=2);
+    [set_service1] s1 <= 1 ->  0.055009382324218745: (s1'=1) + 0.005: (s1'=2) + 1-0.055009382324218745-0.005: (s1'=0);
+    [set_service1] s1 = 2  ->  0.1: (s1'=0) + 1-0.1: (s1'=2);
+endmodule
+
+module service2
+    s2: [0..2] init 0;
+    [set_service2] s2 <= 1 ->  0.043207724609375: (s2'=1) + 0.004: (s2'=2) + 1-0.043207724609375-0.004: (s2'=0);
+    [set_service2] s2 = 2  ->  0.1: (s2'=0) + 1-0.1: (s2'=2);
+endmodule
+
+module service3
+    s3: [0..2] init 0;
+    [set_service3] s3 <= 1 ->  0.026249868164062506: (s3'=1) + 0.0025: (s3'=2) + 1-0.026249868164062506-0.0025: (s3'=0);
+    [set_service3] s3 = 2  ->  0.1: (s3'=0) + 1-0.1: (s3'=2);
 endmodule
 
 module alarm_sender
     alarm: [0..1] init 0;
-    [set_alarm_sender] true -> alarm_frequency: (alarm'=1) + 1-alarm_frequency: (alarm'=0);
+    [set_alarm_sender] (sync_s=3) -> alarm_frequency: (alarm'=1) + 1-alarm_frequency: (alarm'=0);
 endmodule
 
+// Permutations [(1, 2, 3), (1, 3, 2), (2, 1, 3), (2, 3, 1), (3, 1, 2), (3, 2, 1)]
 // UAC
 module adaptation_MAPE_controller
-    uac_s: [0..2] init 0;
+    uac_s: [0..4] init 0;
+    mode: [1..6] init 6;
+    successful_invocation: [0..1] init 0;
 
-    [start_UAC] uac_s = 0 -> (uac_s' = 1);
+    // Plan (set mode)
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 2);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 4);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 4);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 4);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & ! s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 2);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 2);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 1);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & ! s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 5);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & ! s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 3);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat != 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat != 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat != 2  -> 1: (uac_s' = 1) & (mode' = 6);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & s1_needs_probing & s2_needs_probing & s3_needs_probing & s1hat = 2 & s2hat = 2 & s3hat = 2  -> 1: (uac_s' = 1) & (mode' = 6);
 
     // Alarm
-    [s1_invokation] uac_s = 1 &   s1_needs_invokation & s1 = 0              -> 1: (uac_s' = 2);
-    [s1_invokation] uac_s = 1 &   s1_needs_invokation & s1 > 0 & s1hat <= 2 -> 1: (uac_s' = 2);
-    [             ] uac_s = 1 & ! s1_needs_invokation                       -> 1: (uac_s' = 2);
+    // Mode 1
+    [s1_invokation] mode = 1 & uac_s = 1 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s1_invokation] mode = 1 & uac_s = 1 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 1 & uac_s = 1 & ! s1_needs_invokation -> 1: (uac_s' = 2);
+    [s2_invokation] mode = 1 & uac_s = 2 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s2_invokation] mode = 1 & uac_s = 2 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 1 & uac_s = 2 & ! s2_needs_invokation -> 1: (uac_s' = 3);
+    [s3_invokation] mode = 1 & uac_s = 3 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s3_invokation] mode = 1 & uac_s = 3 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 1 & uac_s = 3 & ! s3_needs_invokation -> 1: (uac_s' = 4);
+    // Mode 2
+    [s1_invokation] mode = 2 & uac_s = 1 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s1_invokation] mode = 2 & uac_s = 1 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 2 & uac_s = 1 & ! s1_needs_invokation -> 1: (uac_s' = 2);
+    [s3_invokation] mode = 2 & uac_s = 2 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s3_invokation] mode = 2 & uac_s = 2 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 2 & uac_s = 2 & ! s3_needs_invokation -> 1: (uac_s' = 3);
+    [s2_invokation] mode = 2 & uac_s = 3 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s2_invokation] mode = 2 & uac_s = 3 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 2 & uac_s = 3 & ! s2_needs_invokation -> 1: (uac_s' = 4);
+    // Mode 3
+    [s2_invokation] mode = 3 & uac_s = 1 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s2_invokation] mode = 3 & uac_s = 1 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 3 & uac_s = 1 & ! s2_needs_invokation -> 1: (uac_s' = 2);
+    [s1_invokation] mode = 3 & uac_s = 2 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s1_invokation] mode = 3 & uac_s = 2 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 3 & uac_s = 2 & ! s1_needs_invokation -> 1: (uac_s' = 3);
+    [s3_invokation] mode = 3 & uac_s = 3 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s3_invokation] mode = 3 & uac_s = 3 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 3 & uac_s = 3 & ! s3_needs_invokation -> 1: (uac_s' = 4);
+    // Mode 4
+    [s2_invokation] mode = 4 & uac_s = 1 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s2_invokation] mode = 4 & uac_s = 1 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 4 & uac_s = 1 & ! s2_needs_invokation -> 1: (uac_s' = 2);
+    [s3_invokation] mode = 4 & uac_s = 2 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s3_invokation] mode = 4 & uac_s = 2 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 4 & uac_s = 2 & ! s3_needs_invokation -> 1: (uac_s' = 3);
+    [s1_invokation] mode = 4 & uac_s = 3 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s1_invokation] mode = 4 & uac_s = 3 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 4 & uac_s = 3 & ! s1_needs_invokation -> 1: (uac_s' = 4);
+    // Mode 5
+    [s3_invokation] mode = 5 & uac_s = 1 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s3_invokation] mode = 5 & uac_s = 1 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 5 & uac_s = 1 & ! s3_needs_invokation -> 1: (uac_s' = 2);
+    [s1_invokation] mode = 5 & uac_s = 2 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s1_invokation] mode = 5 & uac_s = 2 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 5 & uac_s = 2 & ! s1_needs_invokation -> 1: (uac_s' = 3);
+    [s2_invokation] mode = 5 & uac_s = 3 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s2_invokation] mode = 5 & uac_s = 3 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 5 & uac_s = 3 & ! s2_needs_invokation -> 1: (uac_s' = 4);
+    // Mode 6
+    [s3_invokation] mode = 6 & uac_s = 1 &   s3_needs_invokation & s3 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s3_invokation] mode = 6 & uac_s = 1 &   s3_needs_invokation & s3 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 6 & uac_s = 1 & ! s3_needs_invokation -> 1: (uac_s' = 2);
+    [s2_invokation] mode = 6 & uac_s = 2 &   s2_needs_invokation & s2 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s2_invokation] mode = 6 & uac_s = 2 &   s2_needs_invokation & s2 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 6 & uac_s = 2 & ! s2_needs_invokation -> 1: (uac_s' = 3);
+    [s1_invokation] mode = 6 & uac_s = 3 &   s1_needs_invokation & s1 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s1_invokation] mode = 6 & uac_s = 3 &   s1_needs_invokation & s1 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 6 & uac_s = 3 & ! s1_needs_invokation -> 1: (uac_s' = 4);
     // Reset
-    [end_round] uac_s = 2 -> (uac_s' = 0);
+    [start_URC] uac_s = 4 -> (uac_s' = 0) & (successful_invocation' = 0);
 endmodule
 
 module Knowledge
     s1hat: [0..2] init 0;
+    s2hat: [0..2] init 0;
+    s3hat: [0..2] init 0;
 
     [s1_invokation] s1 = 0 -> (s1hat' = 0);
     [s1_invokation] s1 > 0 & s1hat <= 2 -> (s1hat' = min((s1hat + 1),2));
-    // [update] true -> (s1hat' = s1);
-  [update] true -> (s1hat'=s1);
+    //[update_s1] true -> (s1hat' = s1);
+    [s2_invokation] s2 = 0 -> (s2hat' = 0);
+    [s2_invokation] s2 > 0 & s2hat <= 2 -> (s2hat' = min((s2hat + 1),2));
+    //[update_s2] true -> (s2hat' = s2);
+    [s3_invokation] s3 = 0 -> (s3hat' = 0);
+    [s3_invokation] s3 > 0 & s3hat <= 2 -> (s3hat' = min((s3hat + 1),2));
+    //[update_s3] true -> (s3hat' = s3);
 endmodule
 
-formula s1_needs_invokation = alarm = 1;
+// URC
+module uncertainty_reduction_controller
+    urc_s: [0..1] init 0;
+    s1_latest_probe: [0..s1_latest_probe_max] init 0;
+    s2_latest_probe: [0..s2_latest_probe_max] init 0;
+    s3_latest_probe: [0..s3_latest_probe_max] init 0;
+
+    [s1_invokation] (sync_s = 5) -> 1: (s1_latest_probe' = 0);
+    [s2_invokation] (sync_s = 5) -> 1: (s2_latest_probe' = 0);
+    [s3_invokation] (sync_s = 5) -> 1: (s3_latest_probe' = 0);
+
+    [start_URC] urc_s = 0 & s1_latest_probe < s1_latest_probe_max & s2_latest_probe < s2_latest_probe_max & s3_latest_probe < s3_latest_probe_max -> 1: (urc_s' = 1);
+    [end_round] urc_s = 1 -> (urc_s' = 0);
+endmodule
+
+formula s1_needs_probing = (s1_latest_probe = s1_latest_probe_max) | (s1hat = 1);
+formula s2_needs_probing = (s2_latest_probe = s2_latest_probe_max) | (s2hat = 1);
+formula s3_needs_probing = (s3_latest_probe = s3_latest_probe_max) | (s3hat = 1);
+
+formula s1_needs_invokation = s1_needs_probing | (alarm = 1 & successful_invocation = 0);
+formula s2_needs_invokation = s2_needs_probing | (alarm = 1 & successful_invocation = 0);
+formula s3_needs_invokation = s3_needs_probing | (alarm = 1 & successful_invocation = 0);
 
 // Rewards
 rewards "total_invokations"
     [s1_invokation] true: 1;
+    [s2_invokation] true: 1;
+    [s3_invokation] true: 1;
 endrewards
 
 rewards "s1_invokations"
     [s1_invokation] true: 1;
 endrewards
 
+rewards "s2_invokations"
+    [s2_invokation] true: 1;
+endrewards
+
+rewards "s3_invokations"
+    [s3_invokation] true: 1;
+endrewards
+
 rewards "total_costs"
-    [s1_invokation] true: 2;
-    // [update] true: 2;
+    [s1_invokation] true: 5;
+    [s2_invokation] true: 4;
+    [s3_invokation] true: 5;
 endrewards
 
 rewards "model_drift"
     [end_round] s1 != s1hat: 1;
+    [end_round] s2 != s2hat: 1;
+    [end_round] s3 != s3hat: 1;
 endrewards
 
 rewards "model_drift_pessimistic"
     [end_round] s1 < s1hat: 1;
+    [end_round] s2 < s2hat: 1;
+    [end_round] s3 < s3hat: 1;
 endrewards
 
 rewards "model_drift_optimistic"
     [end_round] s1 > s1hat: 1;
+    [end_round] s2 > s2hat: 1;
+    [end_round] s3 > s3hat: 1;
 endrewards
 
 rewards "alarms"
@@ -81,32 +264,274 @@ rewards "alarms"
 endrewards
 
 rewards "time_per_alarm"
-    [s1_invokation] alarm = 1 & s1 = 0: 1;
-    [s1_invokation] alarm = 1 & s1 > 0: 3;
+    [s1_invokation] alarm = 1 & successful_invocation = 0 & s1 = 0: 1;
+    [s1_invokation] alarm = 1 & successful_invocation = 0 & s1 > 0: 3;
+    [s2_invokation] alarm = 1 & successful_invocation = 0 & s2 = 0: 1;
+    [s2_invokation] alarm = 1 & successful_invocation = 0 & s2 > 0: 3;
+    [s3_invokation] alarm = 1 & successful_invocation = 0 & s3 = 0: 1;
+    [s3_invokation] alarm = 1 & successful_invocation = 0 & s3 > 0: 3;
 endrewards
-evolve int decision_0 [1..10];
 
-evolve int decision_1 [1..10];
+const int decision_0_0_0_s1 = 5;
+const int decision_0_0_0_s2 = 5;
+const int decision_0_0_0_s3 = 5;
+const int decision_0_0_1_s1 = 5;
+const int decision_0_0_1_s2 = 5;
+const int decision_0_0_1_s3 = 5;
+const int decision_0_0_2_s1 = 5;
+const int decision_0_0_2_s2 = 5;
+const int decision_0_0_2_s3 = 5;
+const int decision_0_1_0_s1 = 5;
+const int decision_0_1_0_s2 = 5;
+const int decision_0_1_0_s3 = 5;
+const int decision_0_1_1_s1 = 5;
+const int decision_0_1_1_s2 = 5;
+const int decision_0_1_1_s3 = 5;
+const int decision_0_1_2_s1 = 5;
+const int decision_0_1_2_s2 = 5;
+const int decision_0_1_2_s3 = 5;
+const int decision_0_2_0_s1 = 5;
+const int decision_0_2_0_s2 = 5;
+const int decision_0_2_0_s3 = 5;
+const int decision_0_2_1_s1 = 5;
+const int decision_0_2_1_s2 = 5;
+const int decision_0_2_1_s3 = 5;
+const int decision_0_2_2_s1 = 5;
+const int decision_0_2_2_s2 = 5;
+const int decision_0_2_2_s3 = 5;
+const int decision_1_0_0_s1 = 5;
+const int decision_1_0_0_s2 = 5;
+const int decision_1_0_0_s3 = 5;
+const int decision_1_0_1_s1 = 5;
+const int decision_1_0_1_s2 = 5;
+const int decision_1_0_1_s3 = 5;
+const int decision_1_0_2_s1 = 5;
+const int decision_1_0_2_s2 = 5;
+const int decision_1_0_2_s3 = 5;
+const int decision_1_1_0_s1 = 5;
+const int decision_1_1_0_s2 = 5;
+const int decision_1_1_0_s3 = 5;
+const int decision_1_1_1_s1 = 5;
+const int decision_1_1_1_s2 = 5;
+const int decision_1_1_1_s3 = 5;
+const int decision_1_1_2_s1 = 5;
+const int decision_1_1_2_s2 = 5;
+const int decision_1_1_2_s3 = 5;
+const int decision_1_2_0_s1 = 5;
+const int decision_1_2_0_s2 = 5;
+const int decision_1_2_0_s3 = 5;
+const int decision_1_2_1_s1 = 5;
+const int decision_1_2_1_s2 = 5;
+const int decision_1_2_1_s3 = 5;
+const int decision_1_2_2_s1 = 5;
+const int decision_1_2_2_s2 = 5;
+const int decision_1_2_2_s3 = 5;
+const int decision_2_0_0_s1 = 5;
+const int decision_2_0_0_s2 = 5;
+const int decision_2_0_0_s3 = 5;
+const int decision_2_0_1_s1 = 5;
+const int decision_2_0_1_s2 = 5;
+const int decision_2_0_1_s3 = 5;
+const int decision_2_0_2_s1 = 5;
+const int decision_2_0_2_s2 = 5;
+const int decision_2_0_2_s3 = 5;
+const int decision_2_1_0_s1 = 5;
+const int decision_2_1_0_s2 = 5;
+const int decision_2_1_0_s3 = 5;
+const int decision_2_1_1_s1 = 5;
+const int decision_2_1_1_s2 = 5;
+const int decision_2_1_1_s3 = 5;
+const int decision_2_1_2_s1 = 5;
+const int decision_2_1_2_s2 = 5;
+const int decision_2_1_2_s3 = 5;
+const int decision_2_2_0_s1 = 5;
+const int decision_2_2_0_s2 = 5;
+const int decision_2_2_0_s3 = 5;
+const int decision_2_2_1_s1 = 5;
+const int decision_2_2_1_s2 = 5;
+const int decision_2_2_1_s3 = 5;
+const int decision_2_2_2_s1 = 5;
+const int decision_2_2_2_s2 = 5;
+const int decision_2_2_2_s3 = 5;
 
-evolve int decision_2 [1..10];
-const int zero = 0;
-const int one = 1;
 module UMC
-  step : [1..10] init 1;
-  [no_update] (step<decision_0) & (s1hat=0) -> (step'=step+1);
-  [no_update] (step<decision_1) & (s1hat=1) -> (step'=step+1);
-  [no_update] (step<decision_2) & (s1hat=2) -> (step'=step+1);
-  [update] (step>=decision_0) & (s1hat=0) -> (step'=1);
-  [update] (step>=decision_1) & (s1hat=1) -> (step'=1);
-  [update] (step>=decision_2) & (s1hat=2) -> (step'=1);
+  step_s1 : [1..10] init 1;
+  step_s2 : [1..10] init 1;
+  step_s3 : [1..10] init 1;
+  [no_update_s1] (step_s1<decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
+  [no_update_s1] (step_s1<decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
+  [no_update_s2] (step_s2<decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
+  [no_update_s3] (step_s3<decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
+  [update_s1] (step_s1>=decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
+  [update_s1] (step_s1>=decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
+  [update_s2] (step_s2>=decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
+  [update_s3] (step_s3>=decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
 endmodule
 
 module Turn
-  t : [0..2] init 0;
+  t : [0..4] init 0;
   [start_UAC] (t=0) -> (t'=1);
 
-  [no_update] (t=1) -> (t'=2);
-  [update] (t=1) -> (t'=2);
+  [no_update_s1] (t=1) -> (t'=2);
+  [update_s1] (t=1) -> (t'=2);
+  [no_update_s2] (t=2) -> (t'=3);
+  [update_s2] (t=2) -> (t'=3);
+  [no_update_s3] (t=3) -> (t'=4);
+  [update_s3] (t=3) -> (t'=4);
 
-  [end_round] (t=2) -> (t'=0);
+  [end_round] (t=4) -> (t'=0);
 endmodule
