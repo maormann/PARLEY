@@ -1,5 +1,5 @@
-numpy
-seaborn
-matplotlib
-scipy
-deap
+numpy==2.0.0
+seaborn==0.13.2
+matplotlib==3.9.1
+scipy==1.14.0
+deap==1.4.1
