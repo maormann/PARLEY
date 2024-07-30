@@ -16,27 +16,26 @@ URS = ('s1', 's2', 's3')  # Uncertainty Reduction Services
 
 
 def models():
-    infile = 'Applications/EvoChecker-master/models/TAS.prism'
-    outfile = 'Applications/EvoChecker-master/models/TAS_umc.prism'
+    infile = os.getenv('PARLEY_MODEL_FILE_IN', 'Applications/EvoChecker-master/models/TAS.prism')
+    outfile = os.getenv('PARLEY_MODEL_FILE_OUT', 'Applications/EvoChecker-master/models/TAS_umc.prism')
     umc_synthesis.manipulate_prism_model(infile,
                                          outfile,
-                                         before_actions=['start_UAC'],
-                                         after_actions=['end_round'],
+                                         before_actions=['set_alarm_sender'],
+                                         after_actions=['start_UAC'],
                                          possible_decisions=[MIN_FREQUENCY, MAX_FREQUENCY],
                                          urs=URS)
 
 
 def baseline():
-    baseline_file = 'Applications/EvoChecker-master/data/TAS_BASELINE/Front'
-    infile = 'Applications/EvoChecker-master/models/TAS_umc.prism'
-    os.makedirs(f'Applications/EvoChecker-master/data/TAS_BASELINE', exist_ok=True)
+    baseline_file = os.getenv('PARLEY_BASELINE_FILE', 'Applications/EvoChecker-master/data/TAS_BASELINE/Front')
+    infile = os.getenv('PARLEY_MODEL_FILE_OUT', 'Applications/EvoChecker-master/models/TAS_umc.prism')
+    os.makedirs(os.path.dirname(baseline_file), exist_ok=True)
     prism_caller.properties = ['\'R{"model_drift"}=? [ C<=200 ]\'', '\'R{"total_costs"}=? [ C<=200 ]\'']
     with open(baseline_file, 'w') as b_file:
         for period in itertools.product(range(MIN_FREQUENCY, MAX_FREQUENCY + 1), range(MIN_FREQUENCY, MAX_FREQUENCY + 1), range(MIN_FREQUENCY, MAX_FREQUENCY + 1)):
             b_file.write(prism_caller.compute_baseline(infile, period))
-            if period < MAX_FREQUENCY**3:  # TODO MAX_FREQUENCY^3 asumes MIN_FREQUENCY = 1
-                b_file.write('\n')
-            print('finished baseline')
+        b_file.write('\n')
+        print('finished baseline')
 
 
 def evo_checker():
@@ -51,7 +50,7 @@ def fronts(i):
 
 def main():
     models()
-    # baseline()
+    baseline()
     # evo_checker()
     # fronts(i)
     # evaluation.main()

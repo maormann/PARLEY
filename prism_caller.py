@@ -15,13 +15,13 @@ command = f'{prism_bin} -maxiters 50000 out.prism -pf '
 def compute_baseline(infile, period):
     with open(infile, 'r') as file:
         file_content = file.read()
-        file_content = re.sub(r'evolve (int decision_.*s1)\[\d+..\d+\];',
+        file_content = re.sub(r'evolve (int decision_.*s1) \[\d+..\d+\];',
                               r'const \1 = ' + str(period[0]) + r';',
                               file_content)
-        file_content = re.sub(r'evolve (int decision_.*s2)\[\d+..\d+\];',
+        file_content = re.sub(r'evolve (int decision_.*s2) \[\d+..\d+\];',
                               r'const \1 = ' + str(period[1]) + r';',
                               file_content)
-        file_content = re.sub(r'evolve (int decision_.*s3)\[\d+..\d+\];',
+        file_content = re.sub(r'evolve (int decision_.*s3) \[\d+..\d+\];',
                               r'const \1 = ' + str(period[2]) + r';',
                               file_content)
         with open('out.prism', 'w') as tmp_file:
