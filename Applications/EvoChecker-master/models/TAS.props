@@ -1,9 +1,9 @@
 const int steps = 75;
 const double alarms = 5.0;
 
-//label "first_invokation" = alarm = 1 & uac_s = 2 & successful_invocation = 1;
+//label "first_invocation" = alarm = 1 & uac_s = 2 & successful_invocation = 1;
 
-R{"s1_invokations"}=? [C <= steps]
+R{"s1_invocations"}=? [C <= steps]
 R{"total_costs"}=? [C <= steps]
 R{"model_drift"}=? [C <= steps]
 R{"time_per_alarm"}=? [C <= steps] / alarms

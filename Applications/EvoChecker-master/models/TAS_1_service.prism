@@ -32,9 +32,9 @@ module adaptation_MAPE_controller
     [start_UAC] uac_s = 0 -> (uac_s' = 1);
 
     // Alarm
-    [s1_invokation] uac_s = 1 &   s1_needs_invokation & s1 = 0              -> 1: (uac_s' = 2);
-    [s1_invokation] uac_s = 1 &   s1_needs_invokation & s1 > 0 & s1hat <= 2 -> 1: (uac_s' = 2);
-    [             ] uac_s = 1 & ! s1_needs_invokation                       -> 1: (uac_s' = 2);
+    [s1_invocation] uac_s = 1 &   s1_needs_invocation & s1 = 0              -> 1: (uac_s' = 2);
+    [s1_invocation] uac_s = 1 &   s1_needs_invocation & s1 > 0 & s1hat <= 2 -> 1: (uac_s' = 2);
+    [             ] uac_s = 1 & ! s1_needs_invocation                       -> 1: (uac_s' = 2);
     // Reset
     [end_round] uac_s = 2 -> (uac_s' = 0);
 endmodule
@@ -42,24 +42,24 @@ endmodule
 module Knowledge
     s1hat: [0..2] init 0;
 
-    [s1_invokation] s1 = 0 -> (s1hat' = 0);
-    [s1_invokation] s1 > 0 & s1hat <= 2 -> (s1hat' = min((s1hat + 1),2));
+    [s1_invocation] s1 = 0 -> (s1hat' = 0);
+    [s1_invocation] s1 > 0 & s1hat <= 2 -> (s1hat' = min((s1hat + 1),2));
     [update_s1] true -> (s1hat' = s1);
 endmodule
 
-formula s1_needs_invokation = alarm = 1;
+formula s1_needs_invocation = alarm = 1;
 
 // Rewards
-rewards "total_invokations"
-    [s1_invokation] true: 1;
+rewards "total_invocations"
+    [s1_invocation] true: 1;
 endrewards
 
-rewards "s1_invokations"
-    [s1_invokation] true: 1;
+rewards "s1_invocations"
+    [s1_invocation] true: 1;
 endrewards
 
 rewards "total_costs"
-    [s1_invokation] true: 2;
+    [s1_invocation] true: 2;
     [update_s1] true: 2;
 endrewards
 
@@ -80,6 +80,6 @@ rewards "alarms"
 endrewards
 
 rewards "time_per_alarm"
-    [s1_invokation] alarm = 1 & s1 = 0: 1;
-    [s1_invokation] alarm = 1 & s1 > 0: 3;
+    [s1_invocation] alarm = 1 & s1 = 0: 1;
+    [s1_invocation] alarm = 1 & s1 > 0: 3;
 endrewards
