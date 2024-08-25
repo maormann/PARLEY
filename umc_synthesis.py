@@ -10,7 +10,8 @@ def manipulate_prism_model(input_path, output_path,
                            after_actions=[],
                            urs=('urs'),  # Uncertainty Reduction Services
                            controller=None,
-                           module_name='Knowledge'
+                           module_name='Knowledge',
+                           add_trun_module=True
                            ):
     if os.path.abspath(input_path) == os.path.abspath(output_path):
         raise ValueError("Input and output files cannot be the same.")
@@ -26,7 +27,8 @@ def manipulate_prism_model(input_path, output_path,
         add_periodic_controller(output_path, possible_decisions, variables, urs)
     else:
         controller(output_path, possible_decisions, variables, urs)
-    add_turn(output_path, before_actions, after_actions, urs)
+    if add_trun_module:
+        add_turn(output_path, before_actions, after_actions, urs)
 
 
 def get_variables(prism_model_path, decision_variables):
@@ -107,6 +109,61 @@ def add_periodic_controller(file_path, possible_decisions, variables, urs):
     decisions = ['step<decision', 'step>=decision']
     changes = ['(step\'=step+1)', '(step\'=1)']
     __add_specific_controller(file_path, transitions, decisions, changes, combinations, variables, urs)
+
+
+def add_tas_controller(file_path, possible_decisions, variables, urs):
+    # write decision variables
+    combinations = generate_combinations_list(variables)
+    __add_controller_prefix(file_path, possible_decisions, combinations, variables, urs)
+    with open(file_path, 'a') as file:
+        for u_reduction_service in urs:
+            file.write(f'  step_{u_reduction_service} : [{possible_decisions[0]}..{possible_decisions[1]}] init {possible_decisions[0]};\n')
+    transitions = ['no_update', 'update']
+    decisions = ['step<decision', 'step>=decision']
+    changes = ['(step\'=step+1)', '(step\'=1)']
+    # Generate formulas
+    formulas = []
+    for transition, decision, change in zip(transitions, decisions, changes):
+        for u_reduction_service in urs:
+            new_formula = {"name": f'{transition}_{u_reduction_service}', "sub_formulas": []}
+            for combination in combinations:
+                sub_formula = f'({decision}'
+                for var in range(0, len(variables)):
+                    sub_formula += '_' + str(combination[var])
+                sub_formula += '_' + u_reduction_service
+                sub_formula += ')'
+                for var in range(0, len(variables)):
+                    sub_formula += f' & ({variables[var][0]}={combination[var]})'
+                sub_formula = sub_formula.replace('step', f'step_{u_reduction_service}')  # Ditry fix
+                new_formula["sub_formulas"].append(sub_formula)
+            formulas.append(new_formula)
+    with open(file_path, 'a') as file:
+        file.write('  urc_s: [0..1] init 0;\n')
+        # Write UMC module to endmodule
+        for transition, decision, change in zip(transitions, decisions, changes):
+            if transition == "update":
+                continue
+            if transition == "no_update":
+                continue
+            for u_reduction_service in urs:
+                new_line = f'  [{transition}_{u_reduction_service}] f_{transition}_{u_reduction_service} -> {change};\n'
+                new_line = new_line.replace('step', f'step_{u_reduction_service}')  # Ditry fix
+                file.write(new_line)
+        # Additionals
+        for u_reduction_service in urs:
+            file.write(f"  [{u_reduction_service}_invocation] true -> 1: (step_{u_reduction_service}' = {possible_decisions[0]});\n")
+        file.write(f"  [start_URC] urc_s = 0 & step_s1 < {possible_decisions[1]} & step_s2 < {possible_decisions[1]} & step_s3 < {possible_decisions[1]} "
+                   f"-> 1: (urc_s' = 1) & (step_s1' = step_s1 + 1 ) & (step_s2' = step_s2 + 1 ) & (step_s3' = step_s3 + 1);\n")  # Not generic
+        file.write("  [end_round] urc_s = 1 -> (urc_s' = 0);")
+        file.write('endmodule\n\n')
+        # Write formulas
+        for formula in formulas:
+            new_formula = f'formula f_{formula["name"]} = \n'
+            for sub_formula in formula["sub_formulas"][:-1]:
+                new_formula += f'({sub_formula}) |\n'
+            new_formula += f'({formula["sub_formulas"][-1]});\n\n'
+            file.write(new_formula)
+        file.write('\n')
 
 
 def add_static_controller(file_path, possible_decisions, variables, urs):

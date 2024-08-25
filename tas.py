@@ -9,7 +9,7 @@ import itertools
 
 MAX_REPLICATIONS = 10
 
-MIN_FREQUENCY = 1
+MIN_FREQUENCY = 0
 MAX_FREQUENCY = 10
 
 URS = ('s1', 's2', 's3')  # Uncertainty Reduction Services
@@ -23,7 +23,9 @@ def models():
                                          before_actions=['set_alarm_sender'],
                                          after_actions=['start_UAC'],
                                          possible_decisions=[MIN_FREQUENCY, MAX_FREQUENCY],
-                                         urs=URS)
+                                         urs=URS,
+                                         controller=umc_synthesis.add_tas_controller,
+                                         add_trun_module=False)
 
 
 def baseline():
@@ -50,7 +52,7 @@ def fronts(i):
 
 def main():
     models()
-    baseline()
+    # baseline()
     # evo_checker()
     # fronts(i)
     # evaluation.main()
