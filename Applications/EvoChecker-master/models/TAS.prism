@@ -1,8 +1,5 @@
 dtmc
 
-const int s1_latest_probe_max = 10;
-const int s2_latest_probe_max = 10;
-const int s3_latest_probe_max = 10;
 const double alarm_frequency = 1/4;
 
 module synchronisation
@@ -193,70 +190,19 @@ module Knowledge
     //[update_s3] true -> (s3hat' = s3);
 endmodule
 
-// URC
-module uncertainty_reduction_controller
-    urc_s: [0..1] init 0;
-    s1_latest_probe: [0..s1_latest_probe_max] init 0;
-    s2_latest_probe: [0..s2_latest_probe_max] init 0;
-    s3_latest_probe: [0..s3_latest_probe_max] init 0;
-
-    [s1_invocation] (sync_s = 5) -> 1: (s1_latest_probe' = 0);
-    [s2_invocation] (sync_s = 5) -> 1: (s2_latest_probe' = 0);
-    [s3_invocation] (sync_s = 5) -> 1: (s3_latest_probe' = 0);
-
-    [start_URC] urc_s = 0 & s1_latest_probe < s1_latest_probe_max & s2_latest_probe < s2_latest_probe_max & s3_latest_probe < s3_latest_probe_max -> 1: (urc_s' = 1);
-    [end_round] urc_s = 1 -> (urc_s' = 0);
-endmodule
-
-formula s1_needs_probing = (s1_latest_probe = s1_latest_probe_max) | (s1hat = 1);
-formula s2_needs_probing = (s2_latest_probe = s2_latest_probe_max) | (s2hat = 1);
-formula s3_needs_probing = (s3_latest_probe = s3_latest_probe_max) | (s3hat = 1);
+formula s1_needs_probing = f_update_s1;
+formula s2_needs_probing = f_update_s2;
+formula s3_needs_probing = f_update_s3;
 
 formula s1_needs_invocation = s1_needs_probing | (alarm = 1 & successful_invocation = 0);
 formula s2_needs_invocation = s2_needs_probing | (alarm = 1 & successful_invocation = 0);
 formula s3_needs_invocation = s3_needs_probing | (alarm = 1 & successful_invocation = 0);
 
 // Rewards
-rewards "total_invocations"
-    [s1_invocation] true: 1;
-    [s2_invocation] true: 1;
-    [s3_invocation] true: 1;
-endrewards
-
-rewards "s1_invocations"
-    [s1_invocation] true: 1;
-endrewards
-
-rewards "s2_invocations"
-    [s2_invocation] true: 1;
-endrewards
-
-rewards "s3_invocations"
-    [s3_invocation] true: 1;
-endrewards
-
 rewards "total_costs"
     [s1_invocation] true: 3.5;
     [s2_invocation] true: 4;
     [s3_invocation] true: 5;
-endrewards
-
-rewards "model_drift"
-    [end_round] s1 != s1hat: 1;
-    [end_round] s2 != s2hat: 1;
-    [end_round] s3 != s3hat: 1;
-endrewards
-
-rewards "model_drift_pessimistic"
-    [end_round] s1 < s1hat: 1;
-    [end_round] s2 < s2hat: 1;
-    [end_round] s3 < s3hat: 1;
-endrewards
-
-rewards "model_drift_optimistic"
-    [end_round] s1 > s1hat: 1;
-    [end_round] s2 > s2hat: 1;
-    [end_round] s3 > s3hat: 1;
 endrewards
 
 rewards "alarms"

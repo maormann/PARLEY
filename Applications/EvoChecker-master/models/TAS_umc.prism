@@ -1,8 +1,5 @@
 dtmc
 
-const int s1_latest_probe_max = 10;
-const int s2_latest_probe_max = 10;
-const int s3_latest_probe_max = 10;
 const double alarm_frequency = 1/4;
 
 module synchronisation
@@ -193,70 +190,19 @@ module Knowledge
     //[update_s3] true -> (s3hat' = s3);
 endmodule
 
-// URC
-module uncertainty_reduction_controller
-    urc_s: [0..1] init 0;
-    s1_latest_probe: [0..s1_latest_probe_max] init 0;
-    s2_latest_probe: [0..s2_latest_probe_max] init 0;
-    s3_latest_probe: [0..s3_latest_probe_max] init 0;
-
-    [s1_invocation] (sync_s = 5) -> 1: (s1_latest_probe' = 0);
-    [s2_invocation] (sync_s = 5) -> 1: (s2_latest_probe' = 0);
-    [s3_invocation] (sync_s = 5) -> 1: (s3_latest_probe' = 0);
-
-    [start_URC] urc_s = 0 & s1_latest_probe < s1_latest_probe_max & s2_latest_probe < s2_latest_probe_max & s3_latest_probe < s3_latest_probe_max -> 1: (urc_s' = 1);
-    [end_round] urc_s = 1 -> (urc_s' = 0);
-endmodule
-
-formula s1_needs_probing = (s1_latest_probe = s1_latest_probe_max) | (s1hat = 1);
-formula s2_needs_probing = (s2_latest_probe = s2_latest_probe_max) | (s2hat = 1);
-formula s3_needs_probing = (s3_latest_probe = s3_latest_probe_max) | (s3hat = 1);
+formula s1_needs_probing = f_update_s1;
+formula s2_needs_probing = f_update_s2;
+formula s3_needs_probing = f_update_s3;
 
 formula s1_needs_invocation = s1_needs_probing | (alarm = 1 & successful_invocation = 0);
 formula s2_needs_invocation = s2_needs_probing | (alarm = 1 & successful_invocation = 0);
 formula s3_needs_invocation = s3_needs_probing | (alarm = 1 & successful_invocation = 0);
 
 // Rewards
-rewards "total_invocations"
-    [s1_invocation] true: 1;
-    [s2_invocation] true: 1;
-    [s3_invocation] true: 1;
-endrewards
-
-rewards "s1_invocations"
-    [s1_invocation] true: 1;
-endrewards
-
-rewards "s2_invocations"
-    [s2_invocation] true: 1;
-endrewards
-
-rewards "s3_invocations"
-    [s3_invocation] true: 1;
-endrewards
-
 rewards "total_costs"
     [s1_invocation] true: 3.5;
     [s2_invocation] true: 4;
     [s3_invocation] true: 5;
-endrewards
-
-rewards "model_drift"
-    [end_round] s1 != s1hat: 1;
-    [end_round] s2 != s2hat: 1;
-    [end_round] s3 != s3hat: 1;
-endrewards
-
-rewards "model_drift_pessimistic"
-    [end_round] s1 < s1hat: 1;
-    [end_round] s2 < s2hat: 1;
-    [end_round] s3 < s3hat: 1;
-endrewards
-
-rewards "model_drift_optimistic"
-    [end_round] s1 > s1hat: 1;
-    [end_round] s2 > s2hat: 1;
-    [end_round] s3 > s3hat: 1;
 endrewards
 
 rewards "alarms"
@@ -272,266 +218,271 @@ rewards "time_per_alarm"
     [s3_invocation] alarm = 1 & successful_invocation = 0 & s3 > 0: 3;
 endrewards
 
-evolve int decision_0_0_0_s1 [1..10];
-evolve int decision_0_0_0_s2 [1..10];
-evolve int decision_0_0_0_s3 [1..10];
-evolve int decision_0_0_1_s1 [1..10];
-evolve int decision_0_0_1_s2 [1..10];
-evolve int decision_0_0_1_s3 [1..10];
-evolve int decision_0_0_2_s1 [1..10];
-evolve int decision_0_0_2_s2 [1..10];
-evolve int decision_0_0_2_s3 [1..10];
-evolve int decision_0_1_0_s1 [1..10];
-evolve int decision_0_1_0_s2 [1..10];
-evolve int decision_0_1_0_s3 [1..10];
-evolve int decision_0_1_1_s1 [1..10];
-evolve int decision_0_1_1_s2 [1..10];
-evolve int decision_0_1_1_s3 [1..10];
-evolve int decision_0_1_2_s1 [1..10];
-evolve int decision_0_1_2_s2 [1..10];
-evolve int decision_0_1_2_s3 [1..10];
-evolve int decision_0_2_0_s1 [1..10];
-evolve int decision_0_2_0_s2 [1..10];
-evolve int decision_0_2_0_s3 [1..10];
-evolve int decision_0_2_1_s1 [1..10];
-evolve int decision_0_2_1_s2 [1..10];
-evolve int decision_0_2_1_s3 [1..10];
-evolve int decision_0_2_2_s1 [1..10];
-evolve int decision_0_2_2_s2 [1..10];
-evolve int decision_0_2_2_s3 [1..10];
-evolve int decision_1_0_0_s1 [1..10];
-evolve int decision_1_0_0_s2 [1..10];
-evolve int decision_1_0_0_s3 [1..10];
-evolve int decision_1_0_1_s1 [1..10];
-evolve int decision_1_0_1_s2 [1..10];
-evolve int decision_1_0_1_s3 [1..10];
-evolve int decision_1_0_2_s1 [1..10];
-evolve int decision_1_0_2_s2 [1..10];
-evolve int decision_1_0_2_s3 [1..10];
-evolve int decision_1_1_0_s1 [1..10];
-evolve int decision_1_1_0_s2 [1..10];
-evolve int decision_1_1_0_s3 [1..10];
-evolve int decision_1_1_1_s1 [1..10];
-evolve int decision_1_1_1_s2 [1..10];
-evolve int decision_1_1_1_s3 [1..10];
-evolve int decision_1_1_2_s1 [1..10];
-evolve int decision_1_1_2_s2 [1..10];
-evolve int decision_1_1_2_s3 [1..10];
-evolve int decision_1_2_0_s1 [1..10];
-evolve int decision_1_2_0_s2 [1..10];
-evolve int decision_1_2_0_s3 [1..10];
-evolve int decision_1_2_1_s1 [1..10];
-evolve int decision_1_2_1_s2 [1..10];
-evolve int decision_1_2_1_s3 [1..10];
-evolve int decision_1_2_2_s1 [1..10];
-evolve int decision_1_2_2_s2 [1..10];
-evolve int decision_1_2_2_s3 [1..10];
-evolve int decision_2_0_0_s1 [1..10];
-evolve int decision_2_0_0_s2 [1..10];
-evolve int decision_2_0_0_s3 [1..10];
-evolve int decision_2_0_1_s1 [1..10];
-evolve int decision_2_0_1_s2 [1..10];
-evolve int decision_2_0_1_s3 [1..10];
-evolve int decision_2_0_2_s1 [1..10];
-evolve int decision_2_0_2_s2 [1..10];
-evolve int decision_2_0_2_s3 [1..10];
-evolve int decision_2_1_0_s1 [1..10];
-evolve int decision_2_1_0_s2 [1..10];
-evolve int decision_2_1_0_s3 [1..10];
-evolve int decision_2_1_1_s1 [1..10];
-evolve int decision_2_1_1_s2 [1..10];
-evolve int decision_2_1_1_s3 [1..10];
-evolve int decision_2_1_2_s1 [1..10];
-evolve int decision_2_1_2_s2 [1..10];
-evolve int decision_2_1_2_s3 [1..10];
-evolve int decision_2_2_0_s1 [1..10];
-evolve int decision_2_2_0_s2 [1..10];
-evolve int decision_2_2_0_s3 [1..10];
-evolve int decision_2_2_1_s1 [1..10];
-evolve int decision_2_2_1_s2 [1..10];
-evolve int decision_2_2_1_s3 [1..10];
-evolve int decision_2_2_2_s1 [1..10];
-evolve int decision_2_2_2_s2 [1..10];
-evolve int decision_2_2_2_s3 [1..10];
+const int decision_0_0_0_s1 = 10;
+const int decision_0_0_0_s2 = 10;
+const int decision_0_0_0_s3 = 10;
+const int decision_0_0_1_s1 = 10;
+const int decision_0_0_1_s2 = 10;
+const int decision_0_0_1_s3 = 10;
+const int decision_0_0_2_s1 = 10;
+const int decision_0_0_2_s2 = 10;
+const int decision_0_0_2_s3 = 10;
+const int decision_0_1_0_s1 = 10;
+const int decision_0_1_0_s2 = 10;
+const int decision_0_1_0_s3 = 10;
+const int decision_0_1_1_s1 = 10;
+const int decision_0_1_1_s2 = 10;
+const int decision_0_1_1_s3 = 10;
+const int decision_0_1_2_s1 = 10;
+const int decision_0_1_2_s2 = 10;
+const int decision_0_1_2_s3 = 10;
+const int decision_0_2_0_s1 = 10;
+const int decision_0_2_0_s2 = 10;
+const int decision_0_2_0_s3 = 10;
+const int decision_0_2_1_s1 = 10;
+const int decision_0_2_1_s2 = 10;
+const int decision_0_2_1_s3 = 10;
+const int decision_0_2_2_s1 = 10;
+const int decision_0_2_2_s2 = 10;
+const int decision_0_2_2_s3 = 10;
+const int decision_1_0_0_s1 = 10;
+const int decision_1_0_0_s2 = 10;
+const int decision_1_0_0_s3 = 10;
+const int decision_1_0_1_s1 = 10;
+const int decision_1_0_1_s2 = 10;
+const int decision_1_0_1_s3 = 10;
+const int decision_1_0_2_s1 = 10;
+const int decision_1_0_2_s2 = 10;
+const int decision_1_0_2_s3 = 10;
+const int decision_1_1_0_s1 = 10;
+const int decision_1_1_0_s2 = 10;
+const int decision_1_1_0_s3 = 10;
+const int decision_1_1_1_s1 = 10;
+const int decision_1_1_1_s2 = 10;
+const int decision_1_1_1_s3 = 10;
+const int decision_1_1_2_s1 = 10;
+const int decision_1_1_2_s2 = 10;
+const int decision_1_1_2_s3 = 10;
+const int decision_1_2_0_s1 = 10;
+const int decision_1_2_0_s2 = 10;
+const int decision_1_2_0_s3 = 10;
+const int decision_1_2_1_s1 = 10;
+const int decision_1_2_1_s2 = 10;
+const int decision_1_2_1_s3 = 10;
+const int decision_1_2_2_s1 = 10;
+const int decision_1_2_2_s2 = 10;
+const int decision_1_2_2_s3 = 10;
+const int decision_2_0_0_s1 = 10;
+const int decision_2_0_0_s2 = 10;
+const int decision_2_0_0_s3 = 10;
+const int decision_2_0_1_s1 = 10;
+const int decision_2_0_1_s2 = 10;
+const int decision_2_0_1_s3 = 10;
+const int decision_2_0_2_s1 = 10;
+const int decision_2_0_2_s2 = 10;
+const int decision_2_0_2_s3 = 10;
+const int decision_2_1_0_s1 = 10;
+const int decision_2_1_0_s2 = 10;
+const int decision_2_1_0_s3 = 10;
+const int decision_2_1_1_s1 = 10;
+const int decision_2_1_1_s2 = 10;
+const int decision_2_1_1_s3 = 10;
+const int decision_2_1_2_s1 = 10;
+const int decision_2_1_2_s2 = 10;
+const int decision_2_1_2_s3 = 10;
+const int decision_2_2_0_s1 = 10;
+const int decision_2_2_0_s2 = 10;
+const int decision_2_2_0_s3 = 10;
+const int decision_2_2_1_s1 = 10;
+const int decision_2_2_1_s2 = 10;
+const int decision_2_2_1_s3 = 10;
+const int decision_2_2_2_s1 = 10;
+const int decision_2_2_2_s2 = 10;
+const int decision_2_2_2_s3 = 10;
 
 module UMC
-  step_s1 : [1..10] init 1;
-  step_s2 : [1..10] init 1;
-  step_s3 : [1..10] init 1;
-  [no_update_s1] (step_s1<decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s3'=step_s3+1);
-  [no_update_s1] (step_s1<decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s1'=step_s1+1);
-  [no_update_s2] (step_s2<decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s2'=step_s2+1);
-  [no_update_s3] (step_s3<decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s3'=step_s3+1);
-  [update_s1] (step_s1>=decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1) -> (step_s3'=1);
-  [update_s1] (step_s1>=decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s1'=1);
-  [update_s2] (step_s2>=decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s2'=1);
-  [update_s3] (step_s3>=decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2) -> (step_s3'=1);
-endmodule
+  step_s1 : [0..10] init 0;
+  step_s2 : [0..10] init 0;
+  step_s3 : [0..10] init 0;
+  urc_s: [0..1] init 0;
+  [s1_invocation] true -> 1: (step_s1' = 0);
+  [s2_invocation] true -> 1: (step_s2' = 0);
+  [s3_invocation] true -> 1: (step_s3' = 0);
+  [start_URC] urc_s = 0 & step_s1 < 10 & step_s2 < 10 & step_s3 < 10 -> 1: (urc_s' = 1) & (step_s1' = step_s1 + 1 ) & (step_s2' = step_s2 + 1 ) & (step_s3' = step_s3 + 1);
+  [end_round] urc_s = 1 -> (urc_s' = 0);endmodule
 
-module Turn
-  t : [0..4] init 0;
-  [set_alarm_sender] (t=0) -> (t'=1);
+formula f_no_update_s1 = 
+((step_s1<decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s1<decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s1<decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s1<decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s1<decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s1<decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s1<decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s1<decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s1<decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s1<decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s1<decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s1<decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s1<decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s1<decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s1<decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s1<decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s1<decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s1<decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s1<decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s1<decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s1<decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s1<decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s1<decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s1<decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s1<decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s1<decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s1<decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2));
 
-  [no_update_s1] (t=1) -> (t'=2);
-  [update_s1] (t=1) -> (t'=2);
-  [no_update_s2] (t=2) -> (t'=3);
-  [update_s2] (t=2) -> (t'=3);
-  [no_update_s3] (t=3) -> (t'=4);
-  [update_s3] (t=3) -> (t'=4);
+formula f_no_update_s2 = 
+((step_s2<decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s2<decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s2<decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s2<decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s2<decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s2<decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s2<decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s2<decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s2<decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s2<decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s2<decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s2<decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s2<decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s2<decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s2<decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s2<decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s2<decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s2<decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s2<decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s2<decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s2<decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s2<decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s2<decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s2<decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s2<decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s2<decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s2<decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2));
 
-  [start_UAC] (t=4) -> (t'=0);
-endmodule
+formula f_no_update_s3 = 
+((step_s3<decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s3<decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s3<decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s3<decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s3<decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s3<decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s3<decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s3<decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s3<decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s3<decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s3<decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s3<decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s3<decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s3<decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s3<decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s3<decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s3<decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s3<decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s3<decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s3<decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s3<decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s3<decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s3<decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s3<decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s3<decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s3<decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s3<decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2));
+
+formula f_update_s1 = 
+((step_s1>=decision_0_0_0_s1) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s1>=decision_0_0_1_s1) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s1>=decision_0_0_2_s1) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s1>=decision_0_1_0_s1) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s1>=decision_0_1_1_s1) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s1>=decision_0_1_2_s1) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s1>=decision_0_2_0_s1) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s1>=decision_0_2_1_s1) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s1>=decision_0_2_2_s1) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s1>=decision_1_0_0_s1) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s1>=decision_1_0_1_s1) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s1>=decision_1_0_2_s1) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s1>=decision_1_1_0_s1) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s1>=decision_1_1_1_s1) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s1>=decision_1_1_2_s1) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s1>=decision_1_2_0_s1) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s1>=decision_1_2_1_s1) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s1>=decision_1_2_2_s1) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s1>=decision_2_0_0_s1) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s1>=decision_2_0_1_s1) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s1>=decision_2_0_2_s1) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s1>=decision_2_1_0_s1) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s1>=decision_2_1_1_s1) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s1>=decision_2_1_2_s1) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s1>=decision_2_2_0_s1) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s1>=decision_2_2_1_s1) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s1>=decision_2_2_2_s1) & (s1hat=2) & (s2hat=2) & (s3hat=2));
+
+formula f_update_s2 = 
+((step_s2>=decision_0_0_0_s2) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s2>=decision_0_0_1_s2) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s2>=decision_0_0_2_s2) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s2>=decision_0_1_0_s2) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s2>=decision_0_1_1_s2) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s2>=decision_0_1_2_s2) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s2>=decision_0_2_0_s2) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s2>=decision_0_2_1_s2) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s2>=decision_0_2_2_s2) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s2>=decision_1_0_0_s2) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s2>=decision_1_0_1_s2) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s2>=decision_1_0_2_s2) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s2>=decision_1_1_0_s2) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s2>=decision_1_1_1_s2) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s2>=decision_1_1_2_s2) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s2>=decision_1_2_0_s2) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s2>=decision_1_2_1_s2) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s2>=decision_1_2_2_s2) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s2>=decision_2_0_0_s2) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s2>=decision_2_0_1_s2) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s2>=decision_2_0_2_s2) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s2>=decision_2_1_0_s2) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s2>=decision_2_1_1_s2) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s2>=decision_2_1_2_s2) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s2>=decision_2_2_0_s2) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s2>=decision_2_2_1_s2) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s2>=decision_2_2_2_s2) & (s1hat=2) & (s2hat=2) & (s3hat=2));
+
+formula f_update_s3 = 
+((step_s3>=decision_0_0_0_s3) & (s1hat=0) & (s2hat=0) & (s3hat=0)) |
+((step_s3>=decision_0_0_1_s3) & (s1hat=0) & (s2hat=0) & (s3hat=1)) |
+((step_s3>=decision_0_0_2_s3) & (s1hat=0) & (s2hat=0) & (s3hat=2)) |
+((step_s3>=decision_0_1_0_s3) & (s1hat=0) & (s2hat=1) & (s3hat=0)) |
+((step_s3>=decision_0_1_1_s3) & (s1hat=0) & (s2hat=1) & (s3hat=1)) |
+((step_s3>=decision_0_1_2_s3) & (s1hat=0) & (s2hat=1) & (s3hat=2)) |
+((step_s3>=decision_0_2_0_s3) & (s1hat=0) & (s2hat=2) & (s3hat=0)) |
+((step_s3>=decision_0_2_1_s3) & (s1hat=0) & (s2hat=2) & (s3hat=1)) |
+((step_s3>=decision_0_2_2_s3) & (s1hat=0) & (s2hat=2) & (s3hat=2)) |
+((step_s3>=decision_1_0_0_s3) & (s1hat=1) & (s2hat=0) & (s3hat=0)) |
+((step_s3>=decision_1_0_1_s3) & (s1hat=1) & (s2hat=0) & (s3hat=1)) |
+((step_s3>=decision_1_0_2_s3) & (s1hat=1) & (s2hat=0) & (s3hat=2)) |
+((step_s3>=decision_1_1_0_s3) & (s1hat=1) & (s2hat=1) & (s3hat=0)) |
+((step_s3>=decision_1_1_1_s3) & (s1hat=1) & (s2hat=1) & (s3hat=1)) |
+((step_s3>=decision_1_1_2_s3) & (s1hat=1) & (s2hat=1) & (s3hat=2)) |
+((step_s3>=decision_1_2_0_s3) & (s1hat=1) & (s2hat=2) & (s3hat=0)) |
+((step_s3>=decision_1_2_1_s3) & (s1hat=1) & (s2hat=2) & (s3hat=1)) |
+((step_s3>=decision_1_2_2_s3) & (s1hat=1) & (s2hat=2) & (s3hat=2)) |
+((step_s3>=decision_2_0_0_s3) & (s1hat=2) & (s2hat=0) & (s3hat=0)) |
+((step_s3>=decision_2_0_1_s3) & (s1hat=2) & (s2hat=0) & (s3hat=1)) |
+((step_s3>=decision_2_0_2_s3) & (s1hat=2) & (s2hat=0) & (s3hat=2)) |
+((step_s3>=decision_2_1_0_s3) & (s1hat=2) & (s2hat=1) & (s3hat=0)) |
+((step_s3>=decision_2_1_1_s3) & (s1hat=2) & (s2hat=1) & (s3hat=1)) |
+((step_s3>=decision_2_1_2_s3) & (s1hat=2) & (s2hat=1) & (s3hat=2)) |
+((step_s3>=decision_2_2_0_s3) & (s1hat=2) & (s2hat=2) & (s3hat=0)) |
+((step_s3>=decision_2_2_1_s3) & (s1hat=2) & (s2hat=2) & (s3hat=1)) |
+((step_s3>=decision_2_2_2_s3) & (s1hat=2) & (s2hat=2) & (s3hat=2));
+
+
