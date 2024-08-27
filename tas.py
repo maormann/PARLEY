@@ -10,9 +10,39 @@ import itertools
 MAX_REPLICATIONS = 10
 
 MIN_FREQUENCY = 0
-MAX_FREQUENCY = 10
+MAX_FREQUENCY = 15
 
 URS = ('s1', 's2', 's3')  # Uncertainty Reduction Services
+
+constains = [
+    ("0_0_1_s3", 0),
+    ("0_1_1_s3", 0),
+    ("0_2_1_s3", 0),
+    ("1_0_1_s3", 0),
+    ("1_1_1_s3", 0),
+    ("1_2_1_s3", 0),
+    ("2_0_1_s3", 0),
+    ("2_1_1_s3", 0),
+    ("2_2_1_s3", 0),
+    ("0_1_0_s2", 0),
+    ("0_1_1_s2", 0),
+    ("0_1_2_s2", 0),
+    ("1_1_0_s2", 0),
+    ("1_1_1_s2", 0),
+    ("1_1_2_s2", 0),
+    ("2_1_0_s2", 0),
+    ("2_1_1_s2", 0),
+    ("2_1_2_s2", 0),
+    ("1_0_0_s1", 0),
+    ("1_0_1_s1", 0),
+    ("1_0_2_s1", 0),
+    ("1_1_0_s1", 0),
+    ("1_1_1_s1", 0),
+    ("1_1_2_s1", 0),
+    ("1_2_0_s1", 0),
+    ("1_2_1_s1", 0),
+    ("1_2_2_s1", 0),
+]
 
 
 def models():
@@ -26,6 +56,8 @@ def models():
                                          urs=URS,
                                          controller=umc_synthesis.add_tas_controller,
                                          add_trun_module=False)
+
+    umc_synthesis.decision_constrains(outfile, constains)
 
 
 def baseline():
@@ -45,16 +77,15 @@ def evo_checker():
     run_evochecker.simple_run()
 
 
-def fronts(i):
-    for period in range(MAX_REPLICATIONS):
-        plot_fronts.plot_pareto_front(i, period)
+def fronts():
+    plot_fronts.plot_tas_pareto_front()
 
 
 def main():
     models()
     # baseline()
     # evo_checker()
-    # fronts(i)
+    # fronts()
     # evaluation.main()
 
 

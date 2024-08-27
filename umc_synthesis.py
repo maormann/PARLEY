@@ -249,3 +249,18 @@ def generate_combinations_list(variables):
 
     generate_combinations_recursive([], variables)
     return result
+
+
+# form constrains: (decision_combination, const) e.g. (0_1_2_s3, 0)
+def decision_constrains(output_path, constrains):
+    # save current content of the file
+    with open(output_path, 'r') as file:
+        lines = file.readlines()
+    # replace decisions
+    with open(output_path, 'w') as file:
+        for line in lines:
+            for constrain in constrains:
+                if re.search(r'^evolve\ int\ decision_' + constrain[0], line):
+                    line = f'const int decision_{constrain[0]} = {constrain[1]};\n'
+                    break
+            file.write(line)
