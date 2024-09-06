@@ -45,7 +45,7 @@ module adaptation_MAPE_controller
     successful_invocation: [0..1] init 0;
 
     // Plan (set mode)
-    [start_UAC] uac_s = 0 & successful_invocation = 0 -> (mode' = decision_mode);
+    [start_UAC] uac_s = 0 & successful_invocation = 0 -> (mode' = decision_mode) & (uac_s' = 1);
 
     // Alarm
     // Mode 1
@@ -267,12 +267,10 @@ module UMC
   step_s1 : [0..15] init 0;
   step_s2 : [0..15] init 0;
   step_s3 : [0..15] init 0;
-  step_0_mode : [0..15] init 0;
   urc_s: [0..1] init 0;
   [s1_invocation] true -> 1: (step_s1' = 0);
   [s2_invocation] true -> 1: (step_s2' = 0);
   [s3_invocation] true -> 1: (step_s3' = 0);
-  [mode_invocation] true -> 1: (step_0_mode' = 0);
   [start_URC] urc_s = 0 & step_s1 < 15 & step_s2 < 15 & step_s3 < 15 -> 1: (urc_s' = 1) & (step_s1' = step_s1 + 1 ) & (step_s2' = step_s2 + 1 ) & (step_s3' = step_s3 + 1);
   [end_round] urc_s = 1 -> (urc_s' = 0);endmodule
 
