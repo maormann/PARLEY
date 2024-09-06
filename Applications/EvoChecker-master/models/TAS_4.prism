@@ -1,0 +1,165 @@
+dtmc
+
+const double alarm_frequency = 1/4;
+
+module synchronisation
+    sync_s: [0..7] init 0;
+    [set_service1] sync_s = 0 -> 1 : (sync_s'=1);
+    [set_service2] sync_s = 1 -> 1 : (sync_s'=2);
+    [set_service3] sync_s = 2 -> 1 : (sync_s'=3);
+    [set_alarm_sender] sync_s = 3 -> 1 : (sync_s'=4);
+    [save_service_decisions] sync_s = 4 -> 1 : (sync_s'=5);
+    [start_UAC] sync_s = 5 -> 1 : (sync_s'=6);
+    [start_URC] sync_s = 6 -> 1 : (sync_s'=7);
+    [end_round] sync_s = 7 -> 1 : (sync_s'=0);
+endmodule
+
+module service1
+    s1: [0..2] init 0;
+    [set_service1] s1 <= 1 ->  0.055009382324218745: (s1'=1) + 0.005: (s1'=2) + 1-0.055009382324218745-0.005: (s1'=0);
+    [set_service1] s1 = 2  ->  0.1: (s1'=0) + 1-0.1: (s1'=2);
+endmodule
+
+module service2
+    s2: [0..2] init 0;
+    [set_service2] s2 <= 1 ->  0.043207724609375: (s2'=1) + 0.004: (s2'=2) + 1-0.043207724609375-0.004: (s2'=0);
+    [set_service2] s2 = 2  ->  0.1: (s2'=0) + 1-0.1: (s2'=2);
+endmodule
+
+module service3
+    s3: [0..2] init 0;
+    [set_service3] s3 <= 1 ->  0.026249868164062506: (s3'=1) + 0.0025: (s3'=2) + 1-0.026249868164062506-0.0025: (s3'=0);
+    [set_service3] s3 = 2  ->  0.1: (s3'=0) + 1-0.1: (s3'=2);
+endmodule
+
+module alarm_sender
+    alarm: [0..1] init 0;
+    [set_alarm_sender] true -> alarm_frequency: (alarm'=1) + 1-alarm_frequency: (alarm'=0);
+endmodule
+
+// Permutations [(1, 2, 3), (1, 3, 2), (2, 1, 3), (2, 3, 1), (3, 1, 2), (3, 2, 1)]
+// UAC
+module adaptation_MAPE_controller
+    uac_s: [0..4] init 0;
+    mode: [1..6] init 6;
+    successful_invocation: [0..1] init 0;
+
+    // Plan (set mode)
+    [start_UAC] uac_s = 0 & successful_invocation = 0 & (mode' = decision_mode);
+
+    // Alarm
+    // Mode 1
+    [s1_invocation] mode = 1 & uac_s = 1 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s1_invocation] mode = 1 & uac_s = 1 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 1 & uac_s = 1 & ! s1_needs_invocation -> 1: (uac_s' = 2);
+    [s2_invocation] mode = 1 & uac_s = 2 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s2_invocation] mode = 1 & uac_s = 2 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 1 & uac_s = 2 & ! s2_needs_invocation -> 1: (uac_s' = 3);
+    [s3_invocation] mode = 1 & uac_s = 3 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s3_invocation] mode = 1 & uac_s = 3 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 1 & uac_s = 3 & ! s3_needs_invocation -> 1: (uac_s' = 4);
+    // Mode 2
+    [s1_invocation] mode = 2 & uac_s = 1 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s1_invocation] mode = 2 & uac_s = 1 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 2 & uac_s = 1 & ! s1_needs_invocation -> 1: (uac_s' = 2);
+    [s3_invocation] mode = 2 & uac_s = 2 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s3_invocation] mode = 2 & uac_s = 2 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 2 & uac_s = 2 & ! s3_needs_invocation -> 1: (uac_s' = 3);
+    [s2_invocation] mode = 2 & uac_s = 3 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s2_invocation] mode = 2 & uac_s = 3 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 2 & uac_s = 3 & ! s2_needs_invocation -> 1: (uac_s' = 4);
+    // Mode 3
+    [s2_invocation] mode = 3 & uac_s = 1 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s2_invocation] mode = 3 & uac_s = 1 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 3 & uac_s = 1 & ! s2_needs_invocation -> 1: (uac_s' = 2);
+    [s1_invocation] mode = 3 & uac_s = 2 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s1_invocation] mode = 3 & uac_s = 2 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 3 & uac_s = 2 & ! s1_needs_invocation -> 1: (uac_s' = 3);
+    [s3_invocation] mode = 3 & uac_s = 3 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s3_invocation] mode = 3 & uac_s = 3 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 3 & uac_s = 3 & ! s3_needs_invocation -> 1: (uac_s' = 4);
+    // Mode 4
+    [s2_invocation] mode = 4 & uac_s = 1 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s2_invocation] mode = 4 & uac_s = 1 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 4 & uac_s = 1 & ! s2_needs_invocation -> 1: (uac_s' = 2);
+    [s3_invocation] mode = 4 & uac_s = 2 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s3_invocation] mode = 4 & uac_s = 2 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 4 & uac_s = 2 & ! s3_needs_invocation -> 1: (uac_s' = 3);
+    [s1_invocation] mode = 4 & uac_s = 3 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s1_invocation] mode = 4 & uac_s = 3 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 4 & uac_s = 3 & ! s1_needs_invocation -> 1: (uac_s' = 4);
+    // Mode 5
+    [s3_invocation] mode = 5 & uac_s = 1 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s3_invocation] mode = 5 & uac_s = 1 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 5 & uac_s = 1 & ! s3_needs_invocation -> 1: (uac_s' = 2);
+    [s1_invocation] mode = 5 & uac_s = 2 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s1_invocation] mode = 5 & uac_s = 2 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 5 & uac_s = 2 & ! s1_needs_invocation -> 1: (uac_s' = 3);
+    [s2_invocation] mode = 5 & uac_s = 3 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s2_invocation] mode = 5 & uac_s = 3 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 5 & uac_s = 3 & ! s2_needs_invocation -> 1: (uac_s' = 4);
+    // Mode 6
+    [s3_invocation] mode = 6 & uac_s = 1 &   s3_needs_invocation & s3 = 0 -> 1: (uac_s' = 2) & (successful_invocation' = 1);
+    [s3_invocation] mode = 6 & uac_s = 1 &   s3_needs_invocation & s3 > 0 -> 1: (uac_s' = 2);
+    [             ] mode = 6 & uac_s = 1 & ! s3_needs_invocation -> 1: (uac_s' = 2);
+    [s2_invocation] mode = 6 & uac_s = 2 &   s2_needs_invocation & s2 = 0 -> 1: (uac_s' = 3) & (successful_invocation' = 1);
+    [s2_invocation] mode = 6 & uac_s = 2 &   s2_needs_invocation & s2 > 0 -> 1: (uac_s' = 3);
+    [             ] mode = 6 & uac_s = 2 & ! s2_needs_invocation -> 1: (uac_s' = 3);
+    [s1_invocation] mode = 6 & uac_s = 3 &   s1_needs_invocation & s1 = 0 -> 1: (uac_s' = 4) & (successful_invocation' = 1);
+    [s1_invocation] mode = 6 & uac_s = 3 &   s1_needs_invocation & s1 > 0 -> 1: (uac_s' = 4);
+    [             ] mode = 6 & uac_s = 3 & ! s1_needs_invocation -> 1: (uac_s' = 4);
+    // Reset
+    [start_URC] uac_s = 4 -> (uac_s' = 0) & (successful_invocation' = 0);
+endmodule
+
+module Knowledge
+    s1hat: [0..2] init 0;
+    s2hat: [0..2] init 0;
+    s3hat: [0..2] init 0;
+    d_s1_needs_probing: [0..1] init 0;
+    d_s2_needs_probing: [0..1] init 0;
+    d_s3_needs_probing: [0..1] init 0;
+
+    [save_service_decisions] true ->
+    (d_s1_needs_probing' = f_update_s1 ? 1 : 0) &
+    (d_s2_needs_probing' = f_update_s2 ? 1 : 0) &
+    (d_s3_needs_probing' = f_update_s3 ? 1 : 0);
+
+    [s1_invocation] s1 = 0 -> (s1hat' = 0);
+    [s1_invocation] s1 > 0 & s1hat <= 2 -> (s1hat' = min((s1hat + 1),2));
+    //[update_s1] true -> (s1hat' = s1);
+    [s2_invocation] s2 = 0 -> (s2hat' = 0);
+    [s2_invocation] s2 > 0 & s2hat <= 2 -> (s2hat' = min((s2hat + 1),2));
+    //[update_s2] true -> (s2hat' = s2);
+    [s3_invocation] s3 = 0 -> (s3hat' = 0);
+    [s3_invocation] s3 > 0 & s3hat <= 2 -> (s3hat' = min((s3hat + 1),2));
+    //[update_s3] true -> (s3hat' = s3);
+endmodule
+
+formula s1_needs_probing = d_s1_needs_probing = 1;
+formula s2_needs_probing = d_s2_needs_probing = 1;
+formula s3_needs_probing = d_s3_needs_probing = 1;
+
+formula s1_needs_invocation = s1_needs_probing | (alarm = 1 & successful_invocation = 0);
+formula s2_needs_invocation = s2_needs_probing | (alarm = 1 & successful_invocation = 0);
+formula s3_needs_invocation = s3_needs_probing | (alarm = 1 & successful_invocation = 0);
+
+// Rewards
+rewards "total_costs"
+    [s1_invocation] true: 3.5;
+    [s2_invocation] true: 4;
+    [s3_invocation] true: 5;
+endrewards
+
+rewards "alarms"
+    [end_round] alarm = 1: 1;
+endrewards
+
+rewards "time_per_alarm"
+    [s1_invocation] alarm = 1 & successful_invocation = 0 & s1 = 0: 1;
+    [s1_invocation] alarm = 1 & successful_invocation = 0 & s1 > 0: 3;
+    [s2_invocation] alarm = 1 & successful_invocation = 0 & s2 = 0: 1;
+    [s2_invocation] alarm = 1 & successful_invocation = 0 & s2 > 0: 3;
+    [s3_invocation] alarm = 1 & successful_invocation = 0 & s3 = 0: 1;
+    [s3_invocation] alarm = 1 & successful_invocation = 0 & s3 > 0: 3;
+endrewards
