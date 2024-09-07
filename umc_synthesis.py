@@ -125,17 +125,28 @@ def add_tas_controller(file_path, possible_decisions, variables, urs):
     formulas = []
     for transition, decision, change in zip(transitions, decisions, changes):
         for u_reduction_service in urs:
-            new_formula = {"name": f'{transition}_{u_reduction_service}', "sub_formulas": []}
+            new_formula = {"name": f'{transition}_{u_reduction_service}',
+                           "decisions": [],
+                           "sub_formulas": [],
+                           "get_decision_sub_formulas": []}
             for combination in combinations:
                 sub_formula = f'({decision}'
+                decision_only = 'decision'
                 for var in range(0, len(variables)):
                     sub_formula += '_' + str(combination[var])
+                    decision_only += '_' + str(combination[var])
                 sub_formula += '_' + u_reduction_service
+                decision_only += '_' + u_reduction_service
                 sub_formula += ')'
+                get_decision_sub_formula = ''
                 for var in range(0, len(variables)):
                     sub_formula += f' & ({variables[var][0]}={combination[var]})'
+                    get_decision_sub_formula += f' & ({variables[var][0]}={combination[var]})'
                 sub_formula = sub_formula.replace('step', f'step_{u_reduction_service}')  # Ditry fix
+                get_decision_sub_formula = get_decision_sub_formula[3:]
+                new_formula["decisions"].append(decision_only)
                 new_formula["sub_formulas"].append(sub_formula)
+                new_formula["get_decision_sub_formulas"].append(get_decision_sub_formula)
             formulas.append(new_formula)
     with open(file_path, 'a') as file:
         file.write('  urc_s: [0..1] init 0;\n')
@@ -162,6 +173,13 @@ def add_tas_controller(file_path, possible_decisions, variables, urs):
             for sub_formula in formula["sub_formulas"][:-1]:
                 new_formula += f'({sub_formula}) |\n'
             new_formula += f'({formula["sub_formulas"][-1]});\n\n'
+            file.write(new_formula)
+        file.write('\n')
+        for formula in formulas:
+            new_formula = f'formula get_decision_{formula["name"]} = \n'
+            for i, get_decision_sub_formula in enumerate(formula["get_decision_sub_formulas"][:-1]):
+                new_formula += f'{get_decision_sub_formula} ? {formula["decisions"][i]} :\n'
+            new_formula += f'{formula["decisions"][-1]};\n\n'
             file.write(new_formula)
         file.write('\n')
 
