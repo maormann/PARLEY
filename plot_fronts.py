@@ -33,11 +33,11 @@ def tas_pareto_front(data):
 
 def plot_tas_pareto_front():
     data = []
-    filename = ''
+    filename = 'TAS_04_Front'
     file_path = 'Applications/EvoChecker-master/data/TAS/NSGAII'
-    for f_name in os.listdir(file_path):
-        if "Front" in f_name:
-            filename = f_name
+    # for f_name in os.listdir(file_path):
+    #     if "Front" in f_name:
+    #         filename = f_name
     with open(os.path.join(file_path, filename), 'r') as file:
         next(file)
         for line in file:
@@ -48,6 +48,22 @@ def plot_tas_pareto_front():
 
     x_values = [x for y, x in pareto_data]
     y_values = [y for y, x in pareto_data]
+
+    print(pareto_data)
+
+    data = []
+    filename = 'TAS_03_Front'
+    file_path = 'Applications/EvoChecker-master/data/TAS/NSGAII'
+    with open(os.path.join(file_path, filename), 'r') as file:
+        next(file)
+        for line in file:
+            x, y = map(float, line.strip().split('\t'))
+            data.append((x, y))
+
+    pareto_data_2 = tas_pareto_front(data)
+
+    x_values_2 = [x for y, x in pareto_data_2]
+    y_values_2 = [y for y, x in pareto_data_2]
 
     data = []
     with open(f'Applications/EvoChecker-master/data/TAS_BASELINE/Front', 'r') as file:
@@ -62,7 +78,8 @@ def plot_tas_pareto_front():
 
     plt.figure(figsize=(8, 6))
 
-    plt.scatter(x_values, y_values, color='blue', label='URC')
+    plt.scatter(x_values, y_values, color='blue', label='URC V4')
+    plt.scatter(x_values_2, y_values_2, color='green', label='URC V3')
 
     # Add red crosses for the baseline
     plt.scatter(x_values_b, y_values_b, color='red', marker='x', label='Baseline')
