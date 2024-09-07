@@ -12,7 +12,7 @@ MAX_REPLICATIONS = 10
 MIN_FREQUENCY = 0
 MAX_FREQUENCY = 15
 
-URS = ('s1', 's2', 's3')  # Uncertainty Reduction Services
+URS = ('s1', 's2', 's3', 'mode')  # Uncertainty Reduction Services
 
 constains = [
     ("0_0_1_s3", 0),
@@ -46,8 +46,8 @@ constains = [
 
 
 def models():
-    infile = os.getenv('PARLEY_MODEL_FILE_IN', 'Applications/EvoChecker-master/models/TAS.prism')
-    outfile = os.getenv('PARLEY_MODEL_FILE_OUT', 'Applications/EvoChecker-master/models/TAS_umc.prism')
+    infile = os.getenv('PARLEY_MODEL_FILE_IN', 'Applications/EvoChecker-master/models/TAS_4.prism')
+    outfile = os.getenv('PARLEY_MODEL_FILE_OUT', 'Applications/EvoChecker-master/models/TAS_4_umc.prism')
     umc_synthesis.manipulate_prism_model(infile,
                                          outfile,
                                          before_actions=['set_alarm_sender'],
@@ -57,7 +57,7 @@ def models():
                                          controller=umc_synthesis.add_tas_controller,
                                          add_trun_module=False)
 
-    umc_synthesis.decision_constrains(outfile, constains)
+    # umc_synthesis.decision_constrains(outfile, constains)
 
 
 def baseline():
@@ -85,7 +85,7 @@ def main():
     models()
     # baseline()
     # evo_checker()
-    # fronts()
+    fronts()
     # evaluation.main()
 
 
